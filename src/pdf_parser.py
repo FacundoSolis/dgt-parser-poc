@@ -236,25 +236,31 @@ class DGTParser:
                 continue
             
             # Try to match ITV line: Date | Date | Station | Result | Kilometers
-            # More flexible pattern to handle various formats
-            date_pattern = r'^(\d{2}/\d{2}/\d{4})\s+(\d{2}/\d{2}/\d{4})\s+(\S+)\s+(FAVORABLE(?:\s+CON)?|DESFAVORABLE|NEGATIVA)'
+            # More flexible pattern to handle various formats and thousands separators
+            date_pattern = r'^(\d{2}/\d{2}/\d{4})\s+(\d{2}/\d{2}/\d{4})\s+([\w-]+)\s+(FAVORABLE(?:\s+CON)?|DESFAVORABLE|NEGATIVA)\s+(\d{1,3}(?:\.\d{3})*|---)'
             match = re.match(date_pattern, line, re.I)
-            
+
             if match:
                 # Save previous ITV if exists
                 if current_itv:
                     data.historial_itvs.append(current_itv)
-                
+
                 # Start new ITV
                 fecha_itv = self._parse_date(match.group(1))
                 fecha_cad = self._parse_date(match.group(2))
+
+                # Only count ITVs before 2025
+                cutoff_date = datetime(2025, 1, 1)
+                if fecha_itv and fecha_itv >= cutoff_date:
+                    continue
+
                 estacion = match.group(3)
                 resultado = match.group(4).upper().replace(' ', '_')
-                
-                # Extract kilometers (after resultado)
-                remaining = line[match.end():].strip()
-                km_match = re.search(r'(\d{1,3}(?:\.\d{3})*|\d+)', remaining)
-                kilometros = self._parse_km(km_match.group(1)) if km_match else 0
+
+                # Kilometers captured in group 5 — normalize removing dots
+                km_str = match.group(5)
+                km_str = km_str.replace('.', '')
+                kilometros = self._parse_km(km_str) if km_str and km_str != '---' else 0
                 
                 current_itv = {
                     'fecha_itv': fecha_itv,

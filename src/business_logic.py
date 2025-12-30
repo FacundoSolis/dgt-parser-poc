@@ -142,11 +142,8 @@ class BusinessLogic:
             # We have at least 2 ITVs with km readings - use those
             working_itvs = itvs_with_km
         elif len(itvs_with_km) == 1:
-            # Only one ITV with km - can't calculate
-            itv = itvs_with_km[0]
-            result['fecha_ult'] = itv['fecha_itv']
-            result['lectura_k_ult'] = itv['kilometros']
-            result['comentarios'].append("Solo una ITV con kilometraje disponible")
+            # Only one ITV with km - can't calculate CAEs
+            result['comentarios'].append("El vehículo no es susceptible de generar CAEs")
             return
         else:
             # No ITVs with km readings
@@ -178,6 +175,10 @@ class BusinessLogic:
         # Select última (most recent) and penúltima (second most recent)
         ultima = filtered_itvs[0]
         penultima = filtered_itvs[1]
+        # Safety check: ensure they're different
+        if ultima['fecha_itv'] == penultima['fecha_itv'] and ultima['kilometros'] == penultima['kilometros']:
+            result['comentarios'].append("El vehículo no es susceptible de generar CAEs")
+            return
         
         result['fecha_ult'] = ultima['fecha_itv']
         result['lectura_k_ult'] = ultima['kilometros']
