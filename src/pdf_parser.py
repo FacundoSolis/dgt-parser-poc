@@ -65,10 +65,16 @@ class DGTParser:
         return data
     
     def _extract_text(self):
-        """Extract all text from PDF"""
+        """Extract all text from PDF - concatenate all pages"""
         with pdfplumber.open(self.pdf_path) as pdf:
-            self.text = "\n".join(page.extract_text() for page in pdf.pages)
-        
+            # ✅ NUEVO: Concatenar TODO el texto primero
+            all_text = []
+            for page in pdf.pages:
+                page_text = page.extract_text()
+                all_text.append(page_text)
+
+            self.text = "\n".join(all_text)
+
         print(f"✓ Texto extraído: {len(self.text)} caracteres")
     
     def _parse_identificacion(self, data: VehicleData):
