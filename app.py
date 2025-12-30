@@ -12,8 +12,8 @@ import sys
 # Add src to path
 sys.path.append('src')
 
-from pdf_parser import DGTParser
-from business_logic import BusinessLogic
+from src.pdf_parser import DGTParser
+from src.business_logic import BusinessLogic
 
 # Page config
 st.set_page_config(
