@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+*.egg-info/
+
+# Project specific
+data/pdfs/*.pdf
+data/output/*.csv
+*.pyc
+.DS_Store
+
+# Keep directory structure
+!data/pdfs/.gitkeep
+!data/output/.gitkeep
