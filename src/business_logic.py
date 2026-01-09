@@ -206,13 +206,19 @@ class BusinessLogic:
             
             # Calculate km ITVs
             if result['lectura_k_ult'] > 0 and result['lectura_k_penulti'] > 0:
-                result['km_itvs'] = result['lectura_k_ult'] - result['lectura_k_penulti']
-                
-                # Calculate km 1 año
-                if dias > 0:
-                    result['km_1_ano'] = int((result['km_itvs'] * 365) / dias)
-                else:
-                    result['comentarios'].append("Días entre ≤ 0, km 1 año = N/A")
+    # Check for odometer reset
+    if result['lectura_k_ult'] < result['lectura_k_penulti']:
+        result['comentarios'].append("Reseteo de cuentakilómetros detectado")
+        result['km_itvs'] = 0
+        result['km_1_ano'] = 0
+    else:
+        result['km_itvs'] = result['lectura_k_ult'] - result['lectura_k_penulti']
+        
+        # Calculate km 1 año
+        if dias > 0:
+            result['km_1_ano'] = int((result['km_itvs'] * 365) / dias)
+        else:
+            result['comentarios'].append("Días entre ≤ 0, km 1 año = N/A"
         
         # km int and km nac - not in PDF
         result['km_int'] = 0
