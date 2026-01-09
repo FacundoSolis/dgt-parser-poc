@@ -4,8 +4,8 @@ Main script - Process all DGT PDFs
 
 import os
 import csv
-from pdf_parser import DGTParser
-from business_logic import BusinessLogic
+from .pdf_parser import DGTParser
+from .business_logic import BusinessLogic
 
 
 def main():

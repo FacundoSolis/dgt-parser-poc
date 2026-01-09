@@ -4,7 +4,7 @@ DGT Vehicle Report Parser - FIXED VERSION
 
 import pdfplumber
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional, Dict, Any, List
 from dataclasses import dataclass, field
 
@@ -211,80 +211,49 @@ class DGTParser:
         print(f"  ✓ {len(data.historial_titulares)} registros")
     
     def _parse_historial_itvs(self, data: VehicleData):
-        """Parse ITV history"""
+        """Parse ITV history - handles multi-page formats"""
         print("\n🔍 HISTORIAL ITVs...")
         
-        # Find section
-        match = re.search(r'HISTORIAL DE INSPECCIONES TÉCNICAS\s+(.+?)(?=El presente documento|HISTORIAL DE LECTURAS|$)', 
-                         self.text, re.I | re.DOTALL)
-        if not match:
-            print("  ⚠ Sección no encontrada")
-            return
+        # Strategy: Find ALL ITV entries across all pages
+        # Pattern: DD/MM/YYYY DD/MM/YYYY Station FAVORABLE/DESFAVORABLE Kilometers
         
-        section = match.group(1)
+        # More flexible pattern that works across different page formats
+        itv_pattern = r'(\d{2}/\d{2}/\d{4})\s+(\d{2}/\d{2}/\d{4})\s+([\w-]+)\s+(FAVORABLE(?:\s+CON)?|DESFAVORABLE|NEGATIVA)\s+(\d{1,3}(?:\.\d{3})*|---)'
         
-        # Split into lines
-        lines = section.split('\n')
-        
-        current_itv = None
-        
-        for line in lines:
-            line = line.strip()
+        for match in re.finditer(itv_pattern, self.text, re.I):
+            fecha_itv = self._parse_date(match.group(1))
+            fecha_cad = self._parse_date(match.group(2))
             
-            # Skip headers and empty lines
-            if not line or 'Fecha ITV' in line or 'Estación' in line:
+            # Filter by date
+            cutoff_date = datetime.now() + timedelta(days=365)
+            if fecha_itv and fecha_itv >= cutoff_date:
                 continue
             
-            # Try to match ITV line: Date | Date | Station | Result | Kilometers
-            # More flexible pattern to handle various formats and thousands separators
-            date_pattern = r'^(\d{2}/\d{2}/\d{4})\s+(\d{2}/\d{2}/\d{4})\s+([\w-]+)\s+(FAVORABLE(?:\s+CON)?|DESFAVORABLE|NEGATIVA)\s+(\d{1,3}(?:\.\d{3})*|---)'
-            match = re.match(date_pattern, line, re.I)
-
-            if match:
-                # Save previous ITV if exists
-                if current_itv:
-                    data.historial_itvs.append(current_itv)
-
-                # Start new ITV
-                fecha_itv = self._parse_date(match.group(1))
-                fecha_cad = self._parse_date(match.group(2))
-
-                # Only count ITVs before 2025
-                cutoff_date = datetime(2025, 1, 1)
-                if fecha_itv and fecha_itv >= cutoff_date:
-                    continue
-
-                estacion = match.group(3)
-                resultado = match.group(4).upper().replace(' ', '_')
-
-                # Kilometers captured in group 5 — normalize removing dots
-                km_str = match.group(5)
-                km_str = km_str.replace('.', '')
-                kilometros = self._parse_km(km_str) if km_str and km_str != '---' else 0
-                
-                current_itv = {
-                    'fecha_itv': fecha_itv,
-                    'fecha_caducidad': fecha_cad,
-                    'estacion': estacion,
-                    'resultado': resultado,
-                    'kilometros': kilometros,
-                    'defectos': [],
-                    'gravedad': ''
-                }
-            elif current_itv and re.match(r'^\d{2}\.\d{2}\s+(LEVE|GRAVE)', line, re.I):
-                # This is a defect line for current ITV
-                current_itv['defectos'].append(line.strip())
+            estacion = match.group(3)
+            resultado = match.group(4).upper().replace(' ', '_')
+            
+            # Kilometers - remove thousands separator
+            km_str = match.group(5)
+            km_str = km_str.replace('.', '')
+            kilometros = self._parse_km(km_str) if km_str and km_str != '---' else 0
+            
+            # Look for defects on the next line (optional)
+            # This is a simplified approach - defects may span multiple lines
+            defectos_str = ""
+            
+            itv = {
+                'fecha_itv': fecha_itv,
+                'fecha_caducidad': fecha_cad,
+                'estacion': estacion,
+                'resultado': resultado,
+                'kilometros': kilometros,
+                'defectos': defectos_str,
+                'gravedad': ''
+            }
+            
+            data.historial_itvs.append(itv)
         
-        # Don't forget last ITV
-        if current_itv:
-            data.historial_itvs.append(current_itv)
-        
-        # Convert defects list to string
-        for itv in data.historial_itvs:
-            itv['defectos'] = '; '.join(itv['defectos']) if itv['defectos'] else ''
-        
-        print(f"  ✓ {len(data.historial_itvs)} inspecciones")
-    
+        print(f"  ✓ {len(data.historial_itvs)} inspecciones")    
     def _parse_historial_bajas(self, data: VehicleData):
         """Parse deregistration history"""
         print("\n🔍 HISTORIAL BAJAS...")

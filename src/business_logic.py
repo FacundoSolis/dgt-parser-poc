@@ -4,7 +4,7 @@ Business Logic - DGT Vehicle Processing Rules
 
 from datetime import datetime
 from typing import Dict, List, Optional, Any
-from pdf_parser import VehicleData
+from .pdf_parser import VehicleData
 
 
 class BusinessLogic:

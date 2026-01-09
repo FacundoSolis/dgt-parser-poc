@@ -17,3 +17,5 @@ data/output/*.csv
 # Keep directory structure
 !data/pdfs/.gitkeep
 !data/output/.gitkeep
+data/pdfs/**/*.pdf
+data/pdfs/C. Informes ITV/*.pdf
