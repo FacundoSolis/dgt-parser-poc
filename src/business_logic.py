@@ -69,6 +69,9 @@ class BusinessLogic:
         # RULE 3: Check BAJAS
         self._check_bajas(data, result)
         
+        # RULE 3.5: Check titularidad/renting changes
+        self._check_titularidad_renting_changes(data, result)
+        
         # RULE 4: Calculate ITV metrics
         self._calculate_itv_metrics(data, result)
         
@@ -99,14 +102,61 @@ class BusinessLogic:
                 fecha_inicio = arrendatario.get('fecha_inicio')
                 fecha_fin = arrendatario.get('fecha_fin')
                 
-                if fecha_inicio and fecha_fin:
-                    meses = (fecha_fin - fecha_inicio).days / 30.44
-                    if meses > 14:
-                        return True
+                if fecha_inicio:
+                    # If fecha_fin is None, renting is currently active
+                    if fecha_fin is None:
+                        # Calculate months from start to today
+                        meses = (datetime.now() - fecha_inicio).days / 30.44
+                        if meses > 14:
+                            return True
+                    else:
+                        # Calculate months between start and end
+                        meses = (fecha_fin - fecha_inicio).days / 30.44
+                        if meses > 14:
+                            return True
             
             return False
         
         return False
+
+    def _check_titularidad_renting_changes(self, data: VehicleData, result: Dict):
+        """Check if titularidad or renting changed after 01/01/2023"""
+        cutoff_date = datetime(2023, 1, 1)
+        
+        # Check titularidad changes
+        for titular in data.historial_titulares:
+            fecha_inicio = titular.get('fecha_inicio')
+            
+            if fecha_inicio and fecha_inicio >= cutoff_date:
+                fecha_str = fecha_inicio.strftime('%d/%m/%Y')
+                result['comentarios'].append(f"Cambio de titularidad el {fecha_str}")
+                break  # Only report the most recent change
+        
+        # Check renting changes
+        if data.es_renting:
+            for arrendatario in data.historial_arrendatarios:
+                filiacion = arrendatario.get('filiacion', '')
+                if not self._matches_client(filiacion):
+                    continue
+                
+                fecha_inicio = arrendatario.get('fecha_inicio')
+                fecha_fin = arrendatario.get('fecha_fin')
+                
+                # Report if renting started after cutoff
+                if fecha_inicio and fecha_inicio >= cutoff_date:
+                    fecha_str = fecha_inicio.strftime('%d/%m/%Y')
+                    result['comentarios'].append(f"Inicio de renting el {fecha_str}")
+                
+                # Report if renting ended after cutoff
+                if fecha_fin and fecha_fin >= cutoff_date:
+                    fecha_str = fecha_fin.strftime('%d/%m/%Y')
+                    result['comentarios'].append(f"Fin de renting el {fecha_str}")
+                
+                # Report if renting is currently active (no end date)
+                if fecha_inicio and fecha_fin is None:
+                    result['comentarios'].append("Renting actualmente activo")
+                
+                break  # Only report the most recent renting
     
     def _check_bajas(self, data: VehicleData, result: Dict):
         """Check if vehicle has BAJAS after 01/01/2023"""
@@ -219,10 +269,10 @@ class BusinessLogic:
                         result['km_1_ano'] = int((result['km_itvs'] * 365) / dias)
                     else:
                         result['comentarios'].append("Días entre ≤ 0, km 1 año = N/A")
-                    
-                    # km int and km nac - not in PDF
-                    result['km_int'] = 0
-                    result['km_nac'] = 0
+        
+        # km int and km nac - not in PDF
+        result['km_int'] = 0
+        result['km_nac'] = 0
     
     def format_output_row(self, result: Dict) -> List[str]:
         """Format result as output row"""
