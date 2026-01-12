@@ -123,7 +123,7 @@ class BusinessLogic:
         """Check if titularidad or renting changed after 01/01/2023"""
         cutoff_date = datetime(2023, 1, 1)
         
-        # Check titularidad changes
+        # Check titularidad changes - ALWAYS report (not just for client)
         for titular in data.historial_titulares:
             fecha_inicio = titular.get('fecha_inicio')
             
@@ -132,31 +132,27 @@ class BusinessLogic:
                 result['comentarios'].append(f"Cambio de titularidad el {fecha_str}")
                 break  # Only report the most recent change
         
-        # Check renting changes
-        if data.es_renting:
-            for arrendatario in data.historial_arrendatarios:
-                filiacion = arrendatario.get('filiacion', '')
-                if not self._matches_client(filiacion):
-                    continue
-                
-                fecha_inicio = arrendatario.get('fecha_inicio')
-                fecha_fin = arrendatario.get('fecha_fin')
-                
-                # Report if renting started after cutoff
-                if fecha_inicio and fecha_inicio >= cutoff_date:
-                    fecha_str = fecha_inicio.strftime('%d/%m/%Y')
-                    result['comentarios'].append(f"Inicio de renting el {fecha_str}")
-                
-                # Report if renting ended after cutoff
-                if fecha_fin and fecha_fin >= cutoff_date:
-                    fecha_str = fecha_fin.strftime('%d/%m/%Y')
-                    result['comentarios'].append(f"Fin de renting el {fecha_str}")
-                
-                # Report if renting is currently active (no end date)
-                if fecha_inicio and fecha_fin is None:
-                    result['comentarios'].append("Renting actualmente activo")
-                
-                break  # Only report the most recent renting
+        # Check renting changes - ALWAYS report (not just for client)
+        if data.es_renting and data.historial_arrendatarios:
+            # Get the most recent arrendatario
+            arrendatario = data.historial_arrendatarios[0]
+            
+            fecha_inicio = arrendatario.get('fecha_inicio')
+            fecha_fin = arrendatario.get('fecha_fin')
+            
+            # Report if renting started after cutoff
+            if fecha_inicio and fecha_inicio >= cutoff_date:
+                fecha_str = fecha_inicio.strftime('%d/%m/%Y')
+                result['comentarios'].append(f"Inicio de renting el {fecha_str}")
+            
+            # Report if renting ended after cutoff
+            if fecha_fin and fecha_fin >= cutoff_date:
+                fecha_str = fecha_fin.strftime('%d/%m/%Y')
+                result['comentarios'].append(f"Fin de renting el {fecha_str}")
+            
+            # Report if renting is currently active (no end date)
+            if fecha_inicio and fecha_fin is None:
+                result['comentarios'].append("Renting actualmente activo")
     
     def _check_bajas(self, data: VehicleData, result: Dict):
         """Check if vehicle has BAJAS after 01/01/2023"""
